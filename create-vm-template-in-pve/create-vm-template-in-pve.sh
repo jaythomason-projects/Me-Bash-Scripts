@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# This script creates a VM template in Proxmox VE (PVE)
-# It uses a config file to specify VM settings, and define cloud-init settings
-# You must pass the path to a config file as an argument when running the script
 # This was built using documentation on 'UntouchedWagons' github repo: https://github.com/UntouchedWagons/Ubuntu-CloudInit-Docs
+# In a nutshell, it creates a ready to boot VM template in Proxmox VE, with cloud-init settings applied
+# It uses a config file to specify VM settings, and define cloud-init settings
+# The script will look for your ISO file in /var/lib/vz/template/iso/, which is the default location for uploaded ISOs in Proxmox
+# You must pass the path to a config file as an argument when running the script, or it will be upset
 
 #--------------------------------------------------
 # Initialise
@@ -21,42 +22,46 @@ if [ "$#" -ne 1 ] || [[ ! "$1" =~ \.(yml|yaml)$ ]]; then
 fi
 CONFIG_FILE="$1"
 
-# Check if 'yq' is installed, and if not, install it
+# Check if 'yq' is installed, and if not, install it. This is required to parse the config file
 if ! command -v yq &> /dev/null; then
     echo "yq is not installed. Installing..."
     apt update
     apt install -y yq
 fi
 
+# Check if the iso file exists at the path specified in the config file
+ISO=$(yq -re '.iso' "$CONFIG_FILE")
+ISO_PATH="/var/lib/vz/template/iso/$ISO"
+if [ ! -f "$ISO_PATH" ]; then
+    echo "iso file not found at: $ISO_PATH. Please check the config file to ensure the iso file is correct."
+    exit 1
+fi
+
 #--------------------------------------------------
 # Logic
 #--------------------------------------------------
-get_iso_path() {
-    ISO_PATH="/var/lib/vz/template/iso/$ISO"
-
-    if [ -f "$ISO_PATH" ]; then
-        echo "$ISO_PATH"
-    else
-        echo "iso file not found at: $ISO_PATH. Please check the config file to ensure the iso file is correct."
-        exit 1
-    fi
-}
-
 copy_iso_to_tmp() {
-    ISO=$(yq -re '.iso' "$CONFIG_FILE")
-    ISO_PATH=$(get_iso_path)
     DISK_IMAGE_PATH="/tmp/$ISO"
 
     if [ ! -f "$DISK_IMAGE_PATH" ]; then
+        trap 'catch_errors "cp" $?' ERR
+        
         echo "Copying iso file to /tmp/..."
         cp "$ISO_PATH" /tmp/
+        
+        trap - ERR
+        
         echo "iso file copied to /tmp/$ISO"
     fi
 }
 
 resize_disk_image() {
+    trap 'catch_errors "qemu-img" $?' ERR
+
     echo "Resizing image file to 32GB..."
     qemu-img resize $DISK_IMAGE_PATH 32G
+
+    trap - ERR
 }
 
 create_vm() {
@@ -68,8 +73,8 @@ create_vm() {
 
     # Check if VM with the given ID already exists
     if qm status $TEMPLATE_ID &> /dev/null; then
-        echo "Error: VM with ID $TEMPLATE_ID already exists."
-        exit 1
+        echo "VM with ID $TEMPLATE_ID already exists."
+        catch_errors "qm status" 1
     fi
 
     trap 'catch_errors "qm create" $?' ERR
@@ -132,6 +137,8 @@ set_cloud_init_settings() {
     CLEARTEXT_PASSWORD=$(yq -re '.default_password' "$CONFIG_FILE")
     TAGS=$(yq -re '.tags | join(",")' "$CONFIG_FILE") # Convert tags to comma separated string
 
+    trap 'catch_errors "qm set" $?' ERR
+    
     echo "Setting cloud-init settings..."
     qm set $TEMPLATE_ID --cicustom "vendor=local:snippets/vendor.yaml"
     qm set $TEMPLATE_ID --tags $TAGS
@@ -139,6 +146,8 @@ set_cloud_init_settings() {
     qm set $TEMPLATE_ID --cipassword $(openssl passwd -6 $CLEARTEXT_PASSWORD)
     qm set $TEMPLATE_ID --sshkeys ~/.ssh/authorized_keys
     qm set $TEMPLATE_ID --ipconfig0 ip=dhcp
+
+    trap - ERR
 
     echo "Cloud-init settings set successfully."
     echo "--------------------"

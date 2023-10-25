@@ -1,0 +1,27 @@
+# basic vm info
+template_name: 'ubuntu-20.04.2-Template' # no spaces
+template_id: '100'
+iso: 'jammy-server-cloudimg-amd64.img'
+tags:
+  - 'ubuntu'
+  - '20.04'
+
+# hardware settings
+cores: 2
+memory: 4096
+
+# storage where the vm will be created
+node_storage: local-lvm
+
+# default user settings
+default_username: ubuntu
+default_password: ubuntu
+
+# creating the vendor.yaml file for cloud-init. #cloud-config is required
+cloudinit_config: |-
+  #cloud-config
+  runcmd:
+      - apt update
+      - apt install -y qemu-guest-agent
+      - systemctl start qemu-guest-agent
+      - reboot

@@ -1,10 +1,10 @@
 # Basic VM info
-template_name: 'ubuntu-20.04.2-Template' # No spaces fam
+template_name: 'ubuntu-22.04.2-Template' # No spaces fam
 template_id: '100'
 iso: 'jammy-server-cloudimg-amd64.img'
 tags:
   - 'ubuntu'
-  - '20.04'
+  - '22.04'
 
 # Hardware settings
 cores: 2
@@ -13,9 +13,8 @@ memory: 4096
 # Storage where the VM will be created
 node_storage: local-lvm
 
-# Default user settings
-default_username: ubuntu
-default_password: ubuntu
+# Define cloud-init user (this is the user that will have the ssh key added)
+cloudinit_user: jay
 
 # Creating the vendor.yaml file for cloud-init. '#cloud-config' is required, don't delete it
 cloudinit_config: |-

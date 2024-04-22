@@ -134,6 +134,7 @@ create_snippets_file() {
 
 set_cloud_init_settings() {
     DEFAULT_USERNAME=$(yq -re '.cloudinit_user' "$CONFIG_FILE")
+    CLEARTEXT_PASSWORD=$(yq -re '.cloudinit_password' "$CONFIG_FILE")
     TAGS=$(yq -re '.tags | join(",")' "$CONFIG_FILE") # Convert tags to comma separated string
 
     trap 'catch_errors "qm set" $?' ERR
@@ -142,6 +143,7 @@ set_cloud_init_settings() {
     qm set $TEMPLATE_ID --cicustom "vendor=local:snippets/vendor.yaml"
     qm set $TEMPLATE_ID --tags $TAGS
     qm set $TEMPLATE_ID --ciuser $DEFAULT_USERNAME
+    qm set $TEMPLATE_ID --cipassword $(openssl passwd -6 $CLEARTEXT_PASSWORD)
     qm set $TEMPLATE_ID --sshkeys ~/.ssh/authorized_keys
     qm set $TEMPLATE_ID --ipconfig0 ip=dhcp
 

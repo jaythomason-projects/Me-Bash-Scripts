@@ -7,7 +7,7 @@
 # You must pass the path to a config file as an argument when running the script, or it will be upset
 
 #--------------------------------------------------
-# Initialise
+# Begin
 #--------------------------------------------------
 # Check the script is run as root
 if [ "$EUID" -ne 0 ]; then
@@ -38,7 +38,7 @@ if [ ! -f "$ISO_PATH" ]; then
 fi
 
 #--------------------------------------------------
-# Logic
+# Functions
 #--------------------------------------------------
 copy_iso_to_tmp() {
     DISK_IMAGE_PATH="/tmp/$ISO"
@@ -155,6 +155,9 @@ clean_up() {
     rm -rf $DISK_IMAGE_PATH
 }
 
+#--------------------------------------------------
+# Process
+#--------------------------------------------------
 main() {
     copy_iso_to_tmp
     resize_disk_image
@@ -177,11 +180,11 @@ catch_errors() {
     exit $EXIT_CODE
 }
 
-#--------------------------------------------------
-# Go!
-#--------------------------------------------------
 main
 
+#--------------------------------------------------
+# End
+#--------------------------------------------------
 clean_up
 
 exit 0

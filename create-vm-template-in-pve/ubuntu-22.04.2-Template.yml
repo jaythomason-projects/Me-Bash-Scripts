@@ -23,4 +23,5 @@ cloudinit_config: |-
       - apt update
       - apt install -y qemu-guest-agent
       - systemctl start qemu-guest-agent
+      - rm /etc/sudoers.d/90-cloud-init-users
       - reboot
